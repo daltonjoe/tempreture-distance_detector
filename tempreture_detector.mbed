@@ -1,0 +1,63 @@
+#include "mbed.h"
+Ticker tim; // The ticker function is used to call an ISR periodically at regular intervals.
+AnalogIn LM35(PA_1);
+Serial pc(USBTX, USBRX); // TX, RX
+BusOut Segments(PC_0,PC_1,PC_2,PA_4,PC_3,PC_5,PB_0);
+int LEDS[] = {0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F};
+int MSD, LSD, Sayi = 0; // MSD is the most significant digit (tens), LSD is the units
+int Flag = 1; // Flag indicates which digits will be displayed (1 for MSD, 0 for LSD)
+
+DigitalOut Nokta(PA_0);
+DigitalOut MSDEnable(PB_9); // PC_8 port will enable MSD (tens)
+DigitalOut LSDEnable(PC_8); // PC_9 port will enable LSD (units)
+//D2 = PC8
+//D1 = PB9
+
+void Refresh() // This is the Interrupt Service Routine (ISR) which will be called by Ticker
+{
+MSD = Sayi/10; // Extract MSD from Counter
+LSD = Sayi % 10; // Extract LSD from Counter
+if (Flag == 1) // If MSD is to be displayed
+{
+LSDEnable = 0; // Disable units digit
+Flag = 0; // Next one to be displayed is LSD (this is for the next refresh)
+Segments = LEDS[MSD]; // Send MSD to both digit display
+MSDEnable = 1; // Enable tens digit
+}
+else if (Flag == 0) // If LSD is to be displayed
+{
+MSDEnable = 0; // Disable tens digit
+Flag = 1; // Next one to be displayed is MSD (this is for the next refresh)
+Segments = LEDS[LSD]; // Send LSD to both digit display
+LSDEnable = 1; // Enable units digit
+}
+}
+
+int main()
+{
+  float tempC;
+ int i;
+ MSDEnable = 0; // both digits are disabled initially
+LSDEnable = 0;
+tim.attach(&Refresh, 0.005); //Attach the function Refresh to a Ticker, specifying the repeat interval in seconds (5ms)
+
+ 
+ 
+tempC=(3.685503686*100);
+
+pc.printf("  Temperature   \r\n");
+pc.printf("%.2f C %.2f",tempC);
+int d1 = tempC;            
+float f2 = tempC - d1;    
+int d2 = (int)(f2 * 100);
+pc.printf("%.2d - %d \r\n",d1,d2);
+Sayi = 0;
+Nokta = 1;
+wait_ms(500);
+Nokta = 0;
+Sayi = d1;
+wait_ms(500);
+Sayi = d2;
+wait(.5);
+}
+}
